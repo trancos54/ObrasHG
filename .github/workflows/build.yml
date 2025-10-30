@@ -1,0 +1,86 @@
+name: Build iOS .ipa (unsigned attempt)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      # Ajusta si tu scheme/nombre de proyecto difiere
+      PROJECT_NAME: ConstruObras
+      SCHEME: ConstruObras
+      CONFIGURATION: Release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Xcode (show xcodebuild version)
+        run: |
+          xcodebuild -version
+          sw_vers
+
+      - name: Install Ruby gems (if using fastlane) - optional
+        run: |
+          echo "Skipping gem install (not required by default)"
+
+      - name: Clean build directory
+        run: |
+          rm -rf build || true
+          mkdir -p build
+
+      - name: Archive with xcodebuild (attempt skip signing)
+        run: |
+          # Ajusta el SDK/ARCHIVE_PATH si es necesario. Usamos CODE_SIGNING_ALLOWED=NO para intentar evitar firma.
+          set -o pipefail
+          xcodebuild clean -project "${PROJECT_NAME}.xcodeproj" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" CODE_SIGNING_ALLOWED=NO | xcpretty || true
+          xcodebuild archive \
+            -project "${PROJECT_NAME}.xcodeproj" \
+            -scheme "${SCHEME}" \
+            -configuration "${CONFIGURATION}" \
+            -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" \
+            CODE_SIGNING_ALLOWED=NO \
+            SKIP_INSTALL=NO \
+            -allowProvisioningUpdates | xcpretty
+
+      - name: Prepare ExportOptions.plist
+        run: |
+          cat > ExportOptions.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>compileBitcode</key>
+            <false/>
+            <key>method</key>
+            <string>development</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>thinning</key>
+            <string>&lt;none&gt;</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export archive to IPA (attempt unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$(pwd)/build/export" \
+            CODE_SIGNING_ALLOWED=NO | xcpretty || true
+
+      - name: List build artifacts
+        run: ls -la build || true
+
+      - name: Upload IPA artifact (if produced)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-ipa
+          path: build/export || build/*.ipa || build/*.xcarchive
