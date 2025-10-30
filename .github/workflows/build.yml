@@ -1,3 +1,4 @@
+# url=https://github.com/trancos54/ObrasHG/blob/main/.github/workflows/build.yml
 name: Build iOS .ipa (unsigned attempt)
 
 on:
@@ -9,7 +10,6 @@ jobs:
   build:
     runs-on: macos-latest
     env:
-      # Ajusta si tu scheme/nombre de proyecto difiere
       PROJECT_NAME: ConstruObras
       SCHEME: ConstruObras
       CONFIGURATION: Release
@@ -17,14 +17,25 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Xcode (show xcodebuild version)
+      - name: Show repository files (for debugging)
         run: |
-          xcodebuild -version
-          sw_vers
+          echo "Listing repo root..."
+          ls -la
+          echo "Listing possible project locations..."
+          ls -la "${PROJECT_NAME}.xcodeproj" || true
+          ls -la ./ || true
 
-      - name: Install Ruby gems (if using fastlane) - optional
+      - name: Fail early if project not found
         run: |
-          echo "Skipping gem install (not required by default)"
+          if [ ! -d "${PROJECT_NAME}.xcodeproj" ] && [ ! -f "${PROJECT_NAME}.xcworkspace" ]; then
+            echo "Error: neither ${PROJECT_NAME}.xcodeproj nor ${PROJECT_NAME}.xcworkspace found in repo root."
+            echo "Make sure the Xcode project is committed to the repository and the workflow uses the correct path."
+            ls -la
+            exit 1
+          fi
+
+      - name: Xcode version
+        run: xcodebuild -version
 
       - name: Clean build directory
         run: |
@@ -33,17 +44,16 @@ jobs:
 
       - name: Archive with xcodebuild (attempt skip signing)
         run: |
-          # Ajusta el SDK/ARCHIVE_PATH si es necesario. Usamos CODE_SIGNING_ALLOWED=NO para intentar evitar firma.
           set -o pipefail
-          xcodebuild clean -project "${PROJECT_NAME}.xcodeproj" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" CODE_SIGNING_ALLOWED=NO | xcpretty || true
-          xcodebuild archive \
-            -project "${PROJECT_NAME}.xcodeproj" \
-            -scheme "${SCHEME}" \
-            -configuration "${CONFIGURATION}" \
-            -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" \
-            CODE_SIGNING_ALLOWED=NO \
-            SKIP_INSTALL=NO \
-            -allowProvisioningUpdates | xcpretty
+          TARGET_PROJECT="${PROJECT_NAME}.xcodeproj"
+          if [ -f "${PROJECT_NAME}.xcworkspace" ]; then
+            echo "Using workspace"
+            xcodebuild archive -workspace "${PROJECT_NAME}.xcworkspace" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" CODE_SIGNING_ALLOWED=NO SKIP_INSTALL=NO | xcpretty
+          else
+            echo "Using project"
+            xcodebuild clean -project "${TARGET_PROJECT}" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" CODE_SIGNING_ALLOWED=NO | xcpretty || true
+            xcodebuild archive -project "${TARGET_PROJECT}" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" CODE_SIGNING_ALLOWED=NO SKIP_INSTALL=NO | xcpretty
+          fi
 
       - name: Prepare ExportOptions.plist
         run: |
@@ -74,13 +84,17 @@ jobs:
             -exportOptionsPlist ExportOptions.plist \
             -exportPath "$(pwd)/build/export" \
             CODE_SIGNING_ALLOWED=NO | xcpretty || true
+          echo "After export: list build/export"
+          ls -la build/export || true
 
       - name: List build artifacts
         run: ls -la build || true
 
-      - name: Upload IPA artifact (if produced)
-        if: always()
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ios-ipa
-          path: build/export || build/*.ipa || build/*.xcarchive
+          name: ios-build-artifacts
+          path: |
+            build/export
+            build/${PROJECT_NAME}.xcarchive
+            build/*.ipa
