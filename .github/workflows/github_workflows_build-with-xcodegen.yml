@@ -1,0 +1,105 @@
+name: Build iOS .ipa (xcodegen -> archive)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+    env:
+      PROJECT_NAME: ConstruObras
+      SCHEME: ConstruObras
+      CONFIGURATION: Release
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install xcodegen
+        run: |
+          brew update || true
+          brew install xcodegen || true
+          xcodegen version
+
+      - name: Generate Xcode project with xcodegen
+        run: |
+          if [ ! -f project.yml ]; then
+            echo "project.yml not found in repo root. Ensure project.yml exists."
+            ls -la
+            exit 1
+          fi
+          xcodegen generate --spec project.yml --use-cache || true
+          echo "Generated project:"
+          ls -la "${PROJECT_NAME}.xcodeproj" || true
+          ls -la "${PROJECT_NAME}.xcodeproj/xcshareddata/xcschemes" || true
+
+      - name: Show repo contents (debug)
+        run: |
+          echo "Repo root:"
+          ls -la
+
+      - name: Xcode version
+        run: xcodebuild -version
+
+      - name: Clean build directory
+        run: |
+          rm -rf build || true
+          mkdir -p build
+
+      - name: Archive with xcodebuild (attempt skip signing)
+        run: |
+          set -o pipefail
+          TARGET_PROJECT="${PROJECT_NAME}.xcodeproj"
+          if [ -f "${PROJECT_NAME}.xcworkspace" ]; then
+            echo "Using workspace"
+            xcodebuild archive -workspace "${PROJECT_NAME}.xcworkspace" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" CODE_SIGNING_ALLOWED=NO SKIP_INSTALL=NO | xcpretty || true
+          else
+            echo "Using generated project"
+            xcodebuild clean -project "${TARGET_PROJECT}" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" CODE_SIGNING_ALLOWED=NO | xcpretty || true
+            xcodebuild archive -project "${TARGET_PROJECT}" -scheme "${SCHEME}" -configuration "${CONFIGURATION}" -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" CODE_SIGNING_ALLOWED=NO SKIP_INSTALL=NO | xcpretty || true
+          fi
+
+      - name: Prepare ExportOptions.plist (development/manual)
+        run: |
+          cat > ExportOptions.plist <<'EOF'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>compileBitcode</key>
+            <false/>
+            <key>method</key>
+            <string>development</string>
+            <key>signingStyle</key>
+            <string>manual</string>
+            <key>stripSwiftSymbols</key>
+            <true/>
+            <key>thinning</key>
+            <string>&lt;none&gt;</string>
+          </dict>
+          </plist>
+          EOF
+
+      - name: Export archive to IPA (attempt unsigned)
+        run: |
+          set -o pipefail
+          xcodebuild -exportArchive \
+            -archivePath "$(pwd)/build/${PROJECT_NAME}.xcarchive" \
+            -exportOptionsPlist ExportOptions.plist \
+            -exportPath "$(pwd)/build/export" \
+            CODE_SIGNING_ALLOWED=NO | xcpretty || true
+          echo "After export: list build/export"
+          ls -la build/export || true
+
+      - name: List build artifacts
+        run: ls -la build || true
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build-artifacts
+          path: |
+            build/export
+            build/${PROJECT_NAME}.xcarchive
+            build/*.ipa

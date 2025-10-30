@@ -1,0 +1,39 @@
+name: ConstruObras
+options:
+  bundleIdPrefix: "com.trancos54"
+configs:
+  Debug: debug
+  Release: release
+settings:
+  BASE_SDK: "iphoneos"
+  IPHONEOS_DEPLOYMENT_TARGET: "17.0"
+  SWIFT_VERSION: "5.9"
+targets:
+  ConstruObras:
+    type: application
+    platform: iOS
+    deploymentTarget: "17.0"
+    bundleId: "$(BUNDLE_ID_PREFIX).ConstruObras"
+    info:
+      path: Info.plist
+    settings:
+      PRODUCT_NAME: ConstruObras
+      CODE_SIGN_IDENTITY: ""
+      DEVELOPMENT_TEAM: ""
+    sources:
+      - Sources
+    resources:
+      - Assets
+    entitlements: ""
+schemes:
+  ConstruObras:
+    build:
+      targets:
+        ConstruObras:
+          buildTypes: [release, debug]
+    run:
+      config: Debug
+    archive:
+      config: Release
+    test:
+      config: Debug
