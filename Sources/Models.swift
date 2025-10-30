@@ -1,8 +1,5 @@
 import Foundation
 import SwiftUI
-import UniformTypeIdentifiers
-
-// MARK: - Models
 
 struct Project: Identifiable, Codable, Equatable {
     var id: UUID = .init()
@@ -20,19 +17,18 @@ struct Project: Identifiable, Codable, Equatable {
 struct Visit: Identifiable, Codable, Equatable {
     var id: UUID = .init()
     var date: Date = .now
-    var generalImageFilename: String? // saved in Documents directory
+    var generalImageFilename: String?
     var description: String = ""
     var annotations: [Annotation] = []
 }
 
 struct Annotation: Identifiable, Codable, Equatable {
     var id: UUID = .init()
-    var imageFilename: String? // saved in Documents directory
+    var imageFilename: String?
     var text: String = ""
 }
 
-// MARK: - File helpers
-
+// File helpers
 extension FileManager {
     static var documentsDirectory: URL {
         default.urls(for: .documentDirectory, in: .userDomainMask)[0]

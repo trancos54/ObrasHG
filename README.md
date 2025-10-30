@@ -1,25 +1,34 @@
 ```markdown
-# ObrasHG
+# ObrasHG — ConstruObras iOS App
 
-Repositorio para la app ConstruObras (gestión de obras y visitas).
+Este repositorio contiene el código fuente de la app ConstruObras (gestión de obras, visitas y anotaciones).
+Sigue las instrucciones para montar el proyecto Xcode localmente, marcar el scheme como "Shared" y generar un ZIP o subir al repositorio.
 
-Contenido:
-- Proyecto Xcode (fuentes Swift/SwiftUI) — agrega el proyecto ConstruObras.xcodeproj aquí.
-- .github/workflows/build.yml — workflow para compilar y generar .ipa.
-- ExportOptions.plist — opciones para exportar el .ipa con xcodebuild.
-- Assets (logo) y demás archivos fuente.
+Pasos rápidos para obtener el .ipa vía GitHub Actions:
+1. Clona este repo localmente:
+   git clone git@github.com:trancos54/ObrasHG.git
+   cd ObrasHG
 
-Instrucciones rápidas:
-1. Crea el repositorio en GitHub con nombre `ObrasHG`.
-2. Clona el repositorio localmente.
-3. Añade el proyecto Xcode (carpeta del proyecto) y los archivos en este repo.
-4. Haz commit y push al repositorio.
-5. En GitHub Actions se ejecutará el workflow y generará el archivo .ipa en los artefactos del run.
+2. Crear el proyecto Xcode:
+   - Abre Xcode → File → New → Project → iOS App (App).
+   - Product Name: ConstruObras
+   - Interface: SwiftUI, Language: Swift
+   - Guarda el proyecto en la raíz del repo (debe crear ConstruObras.xcodeproj en la raíz).
+   - Añade todos los archivos de la carpeta `Sources` al target (File → Add Files...).
+   - Añade Assets.xcassets si procede y sustituye el asset "Logo" por tu imagen.
 
-Nota importante sobre .ipa sin firmar:
-- Xcode y iOS esperan binarios firmados para instalar en dispositivos físicos. Un .ipa "sin firmar" (o con signing desactivado) puede crearse/extraerse, pero no se podrá instalar en dispositivos sin firmarlo posteriormente. El workflow que incluyo intenta omitir la firma (usando CODE_SIGNING_ALLOWED=NO y exportOptions con signingStyle manual), pero el comportamiento puede variar según la versión de Xcode en runner y la configuración del proyecto.
-- Si necesitas distribuir a dispositivos reales, lo habitual es generar un .ipa firmado con un certificado y provisioning profile válidos. Si lo que quieres es obtener el .ipa para que otra herramienta lo firme, el flujo aquí es útil.
+3. Marcar el scheme como "Shared":
+   - Product → Scheme → Manage Schemes... → marca la casilla "Shared" para el scheme ConstruObras.
+   - Esto crea la carpeta `xcshareddata/xcschemes` dentro del .xcodeproj para CI.
 
-Si quieres que yo cree el repositorio y suba los archivos automáticamente, indícame cómo prefieres autorizarlo (por ejemplo, crear un token con permisos repo:status, repo_deployment, public_repo, repo:invite y subirlo en un entorno donde yo pueda usarlo). Actualmente no puedo ejecutar acciones en tu GitHub sin esa autorización.
+4. Agrega, commitea y sube:
+   git add .
+   git commit -m "Add Xcode project and sources"
+   git push origin main
 
-```
+5. En GitHub ve a Actions y re-run del workflow "Build iOS .ipa (unsigned attempt)".
+   - El workflow generará un .xcarchive y (si es posible) un .ipa y los subirá como artefactos.
+
+Notas:
+- El flujo intenta generar un .ipa sin firmar usando CODE_SIGNING_ALLOWED=NO, pero Xcode puede requerir firma para exportar un .ipa instalable. Para distribución a dispositivos reales necesitas firmar con certificado y provisioning válidos.
+- Si prefieres que te entregue un ZIP listo que incluya un .xcodeproj ya configurado (no puedo enviar binarios desde esta sesión), sigue los pasos anteriores y usa zip_project.sh para producir el ZIP localmente.

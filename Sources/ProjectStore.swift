@@ -34,7 +34,6 @@ final class ProjectStore: ObservableObject {
         }
     }
     
-    // CRUD
     func addProject(_ p: Project) {
         projects.append(p)
         save()
