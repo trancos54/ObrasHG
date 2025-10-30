@@ -1,4 +1,3 @@
-# url=https://github.com/trancos54/ObrasHG/blob/main/.github/workflows/build.yml
 name: Build iOS .ipa (unsigned attempt)
 
 on:
@@ -23,6 +22,7 @@ jobs:
           ls -la
           echo "Listing possible project locations..."
           ls -la "${PROJECT_NAME}.xcodeproj" || true
+          ls -la "${PROJECT_NAME}.xcworkspace" || true
           ls -la ./ || true
 
       - name: Fail early if project not found
